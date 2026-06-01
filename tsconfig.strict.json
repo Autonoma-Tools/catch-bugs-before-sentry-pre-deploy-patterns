@@ -1,0 +1,19 @@
+{
+  "//": "Pattern 2 — The strict-mode block that turns the compiler into your first line of QA. Extend your base tsconfig with this file (or paste the compilerOptions block into your existing tsconfig.json) and run `tsc --noEmit` in CI. Every null-deref, every implicit any, every unchecked array access becomes a build failure instead of a Sentry alert.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "useUnknownInCatchVariables": true,
+    "alwaysStrict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true
+  }
+}

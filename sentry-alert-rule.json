@@ -1,0 +1,32 @@
+{
+  "//": "Pattern 5 — The Sentry issue alert that turns a production error into a Slack triage thread. It fires the first time Sentry sees a brand-new issue and posts the title + a deep link to the stack trace into your channel. The blog frames this as 'Sentry-to-Slack triage with test backfill': when this alert lands, you read the stack trace and generate the missing E2E test that would have caught it. See docs/sentry-alert-setup.md for how to apply this via the UI or the API.",
+  "name": "New issue -> Slack triage",
+  "actionMatch": "all",
+  "filterMatch": "all",
+  "frequency": 30,
+  "conditions": [
+    {
+      "id": "sentry.rules.conditions.first_seen_event.FirstSeenEventCondition",
+      "name": "A new issue is created"
+    }
+  ],
+  "filters": [
+    {
+      "id": "sentry.rules.filters.level.LevelFilter",
+      "name": "The issue's level is equal to error",
+      "match": "gte",
+      "level": "40"
+    }
+  ],
+  "actions": [
+    {
+      "id": "sentry.integrations.slack.notify_action.SlackNotifyServiceAction",
+      "name": "Send a Slack notification",
+      "workspace": "YOUR_SLACK_WORKSPACE_ID",
+      "channel": "#prod-alerts",
+      "channel_id": "YOUR_SLACK_CHANNEL_ID",
+      "tags": "environment,release",
+      "notes": "New issue: {{ issue.title }} — open the stack trace: {{ issue.url }}. Backfill the missing E2E test from this trace before closing."
+    }
+  ]
+}

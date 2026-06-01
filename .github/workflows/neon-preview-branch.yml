@@ -1,0 +1,65 @@
+# Pattern 4 — A throwaway database branch per pull request.
+#
+# This workflow spins up an isolated Neon database branch for each PR, seeded
+# from your production (or main) branch's schema and data. Your preview
+# deployment points at THIS branch's connection string, so migrations and
+# data-shape bugs surface in the PR instead of in production. When the PR
+# closes, the branch is deleted and the cost goes to zero.
+#
+# Required repository secrets:
+#   NEON_API_KEY     — Neon API key (Account settings > API keys).
+#   NEON_PROJECT_ID  — your Neon project id (Project settings > General).
+name: Neon preview branch
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, closed]
+
+# One database branch per PR. Serialize events for the same PR so an open and
+# a close event never race each other.
+concurrency:
+  group: neon-preview-${{ github.event.number }}
+  cancel-in-progress: false
+
+jobs:
+  create-branch:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Create a Neon branch for this PR
+        id: create-branch
+        uses: neondatabase/create-branch-action@v5
+        with:
+          project_id: ${{ secrets.NEON_PROJECT_ID }}
+          # Stable, predictable name so re-runs reuse the same branch instead
+          # of piling up duplicates.
+          branch_name: preview/pr-${{ github.event.number }}
+          api_key: ${{ secrets.NEON_API_KEY }}
+
+      - name: Hand the connection string to the preview deployment
+        # The action exposes db_url (pooled) and db_url_with_pooler. Pass it to
+        # whatever provisions your preview deploy. Below is the shape for the
+        # Vercel CLI; adapt the final command to your platform. The value is
+        # masked in logs because it is treated as a step output secret.
+        env:
+          DATABASE_URL: ${{ steps.create-branch.outputs.db_url_with_pooler }}
+        run: |
+          echo "::add-mask::${DATABASE_URL}"
+          echo "Provisioned DATABASE_URL for preview/pr-${{ github.event.number }}."
+          # Example: inject into a Vercel preview deployment.
+          #   npm i -g vercel
+          #   vercel env add DATABASE_URL preview <<< "${DATABASE_URL}"
+          #   vercel deploy --prebuilt --token "${{ secrets.VERCEL_TOKEN }}"
+
+  delete-branch:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Delete the PR's Neon branch
+        uses: neondatabase/delete-branch-action@v3
+        with:
+          project_id: ${{ secrets.NEON_PROJECT_ID }}
+          branch: preview/pr-${{ github.event.number }}
+          api_key: ${{ secrets.NEON_API_KEY }}

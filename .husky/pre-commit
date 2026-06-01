@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+# Pattern 3 — Run lint-staged on every commit.
+#
+# lint-staged reads the "lint-staged" block in package.json and runs the
+# matching commands against only the files you staged. ESLint auto-fixes
+# style, and `jest --findRelatedTests` runs just the tests that touch the
+# changed files so the hook stays fast. A failing lint or test aborts the
+# commit, so broken code never even reaches the branch.
+#
+# Install once with:
+#   npm install --save-dev husky lint-staged
+#   npx husky init
+# then replace the generated hook body with this line.
+npx lint-staged

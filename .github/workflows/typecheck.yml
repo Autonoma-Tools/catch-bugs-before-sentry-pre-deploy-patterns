@@ -1,0 +1,35 @@
+# Pattern 2 — A dedicated type-check gate that runs BEFORE build.
+#
+# Keeping `tsc --noEmit` as its own required check (separate from the build
+# job) means a type error fails fast with a clear signal, instead of being
+# buried in build logs. Make this a required status check on your default
+# branch so no PR with a type error can merge.
+name: Typecheck
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check with strict config (no emit)
+        # --noEmit means we only validate types; no JS is written. Point it at
+        # the strict project so the gate enforces the strict-mode block even if
+        # the base tsconfig is looser during the migration period.
+        run: npx tsc --noEmit --project tsconfig.strict.json

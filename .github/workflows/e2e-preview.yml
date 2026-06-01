@@ -1,0 +1,83 @@
+# Pattern 1 — Run E2E tests against the per-PR preview deployment.
+#
+# This workflow runs your Playwright suite against the live preview URL that a
+# Vercel-style deployment produces for each pull request. It catches the bugs
+# that only show up against real, deployed infrastructure (env vars, edge
+# config, cold starts) before the PR ever merges to production.
+#
+# Assumptions:
+#   - A preview deployment (Vercel, Netlify, etc.) is already wired up and
+#     posts a "deployment_status" event with the preview URL once it is live.
+#   - Your Playwright config reads the target URL from the PREVIEW_URL env var,
+#     e.g. `use: { baseURL: process.env.PREVIEW_URL }`.
+name: E2E against preview
+
+on:
+  # Fire when the preview deployment reaches a terminal state. This guarantees
+  # the URL exists before we point Playwright at it. pull_request alone would
+  # race the deployment and test a stale (or missing) URL.
+  deployment_status
+
+# A newer commit on the same PR cancels the in-flight run so we never waste
+# minutes testing a preview that is about to be replaced.
+concurrency:
+  group: e2e-preview-${{ github.event.deployment.environment }}-${{ github.event.deployment.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    # Only run once the preview is actually live and only for preview targets.
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment == 'Preview'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PREVIEW_URL: ${{ github.event.deployment_status.environment_url }}
+    steps:
+      - name: Checkout the commit that was deployed
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.deployment.sha }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Wait for the preview URL to respond
+        # Poll until the preview answers 2xx/3xx so a still-warming deployment
+        # does not produce flaky first-request failures.
+        run: |
+          echo "Waiting for ${PREVIEW_URL} to become reachable..."
+          for attempt in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" "${PREVIEW_URL}" || echo "000")
+            if [ "${status}" -ge 200 ] && [ "${status}" -lt 400 ]; then
+              echo "Preview is up (HTTP ${status}) after ${attempt} attempt(s)."
+              exit 0
+            fi
+            echo "Attempt ${attempt}: got HTTP ${status}, retrying in 5s..."
+            sleep 5
+          done
+          echo "Preview URL never became reachable." >&2
+          exit 1
+
+      - name: Run Playwright tests against the preview
+        run: npx playwright test
+        env:
+          PREVIEW_URL: ${{ env.PREVIEW_URL }}
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

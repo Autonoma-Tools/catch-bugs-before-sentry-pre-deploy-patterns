@@ -1,9 +1,9 @@
 {
   "version": 1,
   "slug": "catch-bugs-before-sentry-pre-deploy-patterns",
-  "step": "created",
-  "completed_specs": [],
-  "pending_specs": ["github-actions-e2e-preview", "tsconfig-strict-ci", "husky-lint-staged-config", "neon-preview-env-github-action", "sentry-slack-alert-config"],
-  "created_at": "2026-06-01T17:19:59Z",
-  "updated_at": "2026-06-01T17:19:59Z"
+  "step": "deps_written",
+  "completed_specs": ["github-actions-e2e-preview", "tsconfig-strict-ci", "husky-lint-staged-config", "neon-preview-env-github-action", "sentry-slack-alert-config"],
+  "pending_specs": [],
+  "created_at": "2026-06-01T17:22:57Z",
+  "updated_at": "2026-06-01T17:22:57Z"
 }

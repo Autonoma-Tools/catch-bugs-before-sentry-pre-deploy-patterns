@@ -1,0 +1,26 @@
+{
+  "name": "catch-bugs-before-sentry-pre-deploy-patterns",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Pattern 3 — Husky + lint-staged config that lints and runs related tests on changed files before every commit.",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "jest --bail --findRelatedTests --passWithNoTests"
+    ],
+    "*.{js,jsx}": [
+      "eslint --fix"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "husky": "^9.1.0",
+    "lint-staged": "^15.2.0"
+  }
+}
